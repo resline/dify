@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dify Architecture Diagram</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <link href="https://unpkg.com/vis-network/styles/vis-network.min.css" rel="stylesheet" type="text/css" />
+    <style type="text/css">
+        #difyNetwork {
+            width: 100vw;
+            height: 90vh;
+            border: 1px solid lightgray;
+        }
+        p {
+            margin: 10px;
+            font-family: sans-serif;
+        }
+    </style>
+</head>
+<body>
+
+    <p>Note: This diagram represents the Dify architecture based on available documentation. Some connections are inferred due to the inability to directly parse the <code>docker-compose.yml</code> file. The actual port numbers for internal communications are managed by Docker networking.</p>
+    <div id="difyNetwork"></div>
+
+    <script type="text/javascript">
+        // Define nodes
+        var nodes = new vis.DataSet([
+            { id: 'user', label: 'User/Internet', group: 'external', title: 'User/Internet: External users accessing Dify.' },
+            { id: 'nginx', label: 'NGINX', group: 'core', title: 'NGINX: Reverse Proxy / Load Balancer. Entry point for user traffic (Ports 80, 443).' },
+            { id: 'web', label: 'Web UI', group: 'core', title: 'Web UI: Frontend application (React). Served by NGINX.' },
+            { id: 'api', label: 'API', group: 'core', title: 'API: Backend services. Handles business logic and data processing.' },
+            { id: 'worker', label: 'Worker', group: 'core', title: 'Worker: Background task processing.' },
+            { id: 'db', label: 'Database', group: 'dependent', title: 'Database (PostgreSQL): Primary data storage.' },
+            { id: 'redis', label: 'Redis', group: 'dependent', title: 'Redis: In-memory cache, message broker for task queues.' },
+            { id: 'weaviate', label: 'Weaviate', group: 'dependent', title: 'Weaviate: Vector database for semantic search and RAG.' },
+            { id: 'sandbox', label: 'Sandbox', group: 'dependent', title: 'Sandbox: Isolated environment for code execution (e.g., custom tools).' },
+            { id: 'ssrf_proxy', label: 'SSRF Proxy', group: 'dependent', title: 'SSRF Proxy: Secure proxy for outgoing requests from API/Worker to external services.' }
+        ]);
+
+        // Define edges
+        var edges = new vis.DataSet([
+            { from: 'user', to: 'nginx', arrows: 'to', title: 'HTTP/HTTPS Traffic (Ports 80/443)' },
+            { from: 'nginx', to: 'web', arrows: 'to', title: 'Serves Frontend / Proxies to API' },
+            { from: 'nginx', to: 'api', arrows: 'to', title: 'Proxies API Requests' },
+            { from: 'web', to: 'api', arrows: 'to', title: 'API Calls' },
+            { from: 'api', to: 'db', arrows: 'to', title: 'Data Storage & Retrieval' },
+            { from: 'api', to: 'redis', arrows: 'to', title: 'Caching, Session Mgmt, Task Queues' },
+            { from: 'api', to: 'weaviate', arrows: 'to', title: 'Vector Search, RAG' },
+            { from: 'api', to: 'worker', arrows: 'to', title: 'Delegates Background Tasks' },
+            { from: 'api', to: 'sandbox', arrows: 'to', title: 'Executes Custom Tools/Code' },
+            { from: 'api', to: 'ssrf_proxy', arrows: 'to', title: 'Secure External API Calls' },
+            { from: 'worker', to: 'db', arrows: 'to', title: 'Data Access for Background Tasks' },
+            { from: 'worker', to: 'redis', arrows: 'to', title: 'Task Queues, Caching' },
+            { from: 'worker', to: 'weaviate', arrows: 'to', title: 'Background Vector Data Processing' },
+            { from: 'worker', to: 'sandbox', arrows: 'to', title: 'Sandboxed Code Execution (Background)' },
+            { from: 'worker', to: 'ssrf_proxy', arrows: 'to', title: 'Secure External API Calls (Background)' }
+        ]);
+
+        // Get the container div
+        var container = document.getElementById('difyNetwork');
+
+        // Provide the data in the vis format
+        var data = {
+            nodes: nodes,
+            edges: edges
+        };
+
+        // Define options
+        var options = {
+            groups: {
+                core: { color: { background: '#FFC107', border: '#FF9800' } },
+                dependent: { color: { background: '#4CAF50', border: '#388E3C' } },
+                external: { color: { background: '#2196F3', border: '#1976D2' } }
+            },
+            layout: {
+                randomSeed: undefined,
+                improvedLayout: true
+            },
+            interaction: {
+                hover: true
+            },
+            physics: {
+                stabilization: {
+                    iterations: 200
+                }
+            }
+        };
+
+        // Initialize the network
+        var network = new vis.Network(container, data, options);
+    </script>
+
+</body>
+</html>
