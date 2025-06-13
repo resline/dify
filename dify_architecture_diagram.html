@@ -27,13 +27,14 @@
             { id: 'user', label: 'User/Internet', group: 'external', title: 'User/Internet: External users accessing Dify.' },
             { id: 'nginx', label: 'NGINX', group: 'core', title: 'NGINX: Reverse Proxy / Load Balancer. Entry point for user traffic (Ports 80, 443).' },
             { id: 'web', label: 'Web UI', group: 'core', title: 'Web UI: Frontend application (React). Served by NGINX.' },
-            { id: 'api', label: 'API', group: 'core', title: 'API: Backend services. Handles business logic and data processing.' },
+            { id: 'api', label: 'API', group: 'core', title: 'API: Backend services. Handles business logic, data processing. Listens on port 5001. Interacts with Plugin Daemon (Port 5002) and Sandbox (Port 8194).' },
             { id: 'worker', label: 'Worker', group: 'core', title: 'Worker: Background task processing.' },
             { id: 'db', label: 'Database', group: 'dependent', title: 'Database (PostgreSQL): Primary data storage.' },
             { id: 'redis', label: 'Redis', group: 'dependent', title: 'Redis: In-memory cache, message broker for task queues.' },
             { id: 'weaviate', label: 'Weaviate', group: 'dependent', title: 'Weaviate: Vector database for semantic search and RAG.' },
-            { id: 'sandbox', label: 'Sandbox', group: 'dependent', title: 'Sandbox: Isolated environment for code execution (e.g., custom tools).' },
-            { id: 'ssrf_proxy', label: 'SSRF Proxy', group: 'dependent', title: 'SSRF Proxy: Secure proxy for outgoing requests from API/Worker to external services.' }
+            { id: 'sandbox', label: 'Sandbox', group: 'dependent', title: 'Sandbox: Isolated environment for code execution (e.g., custom tools). Listens on port 8194. Proxied by SSRF Proxy for external calls.' },
+            { id: 'ssrf_proxy', label: 'SSRF Proxy', group: 'dependent', title: 'SSRF Proxy: Secure proxy for outgoing requests from API/Worker/Sandbox to external services. Listens on port 3128.' },
+            { id: 'plugin_daemon', label: 'Plugin Daemon', group: 'core', title: 'Plugin Daemon: Manages Dify plugins, installation, execution, and storage. (Port 5002)' }
         ]);
 
         // Define edges
@@ -46,13 +47,17 @@
             { from: 'api', to: 'redis', arrows: 'to', title: 'Caching, Session Mgmt, Task Queues' },
             { from: 'api', to: 'weaviate', arrows: 'to', title: 'Vector Search, RAG' },
             { from: 'api', to: 'worker', arrows: 'to', title: 'Delegates Background Tasks' },
-            { from: 'api', to: 'sandbox', arrows: 'to', title: 'Executes Custom Tools/Code' },
-            { from: 'api', to: 'ssrf_proxy', arrows: 'to', title: 'Secure External API Calls' },
+            { from: 'api', to: 'sandbox', arrows: 'to', title: 'Executes Custom Tools/Code via Sandbox API (Port 8194)' },
+            { from: 'api', to: 'ssrf_proxy', arrows: 'to', title: 'Secure External API Calls via SSRF Proxy (Port 3128)' },
             { from: 'worker', to: 'db', arrows: 'to', title: 'Data Access for Background Tasks' },
             { from: 'worker', to: 'redis', arrows: 'to', title: 'Task Queues, Caching' },
             { from: 'worker', to: 'weaviate', arrows: 'to', title: 'Background Vector Data Processing' },
-            { from: 'worker', to: 'sandbox', arrows: 'to', title: 'Sandboxed Code Execution (Background)' },
-            { from: 'worker', to: 'ssrf_proxy', arrows: 'to', title: 'Secure External API Calls (Background)' }
+            { from: 'worker', to: 'sandbox', arrows: 'to', title: 'Sandboxed Code Execution (Background) via Sandbox API (Port 8194)' },
+            { from: 'worker', to: 'ssrf_proxy', arrows: 'to', title: 'Secure External API Calls (Background) via SSRF Proxy (Port 3128)' },
+            // Plugin Daemon Edges
+            { from: 'plugin_daemon', to: 'db', arrows: 'to', title: 'Stores Plugin Data/Metadata' },
+            { from: 'plugin_daemon', to: 'api', arrows: 'to', title: 'Internal API Calls (Callbacks, Registration)' },
+            { from: 'api', to: 'plugin_daemon', arrows: 'to', title: 'Plugin Management (Install, Execute via Port 5002)' }
         ]);
 
         // Get the container div
@@ -67,9 +72,9 @@
         // Define options
         var options = {
             groups: {
-                core: { color: { background: '#FFC107', border: '#FF9800' } },
-                dependent: { color: { background: '#4CAF50', border: '#388E3C' } },
-                external: { color: { background: '#2196F3', border: '#1976D2' } }
+                core: { color: { background: '#FFC107', border: '#FF9800' } }, // Orange/Amber
+                dependent: { color: { background: '#4CAF50', border: '#388E3C' } }, // Green
+                external: { color: { background: '#2196F3', border: '#1976D2' } } // Blue
             },
             layout: {
                 randomSeed: undefined,
