@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 import app
 from configs import dify_config
+from enums.cloud_plan import CloudPlan
 from extensions.ext_database import db
 from extensions.ext_redis import redis_client
 from models.model import (
@@ -47,7 +48,6 @@ def clean_messages():
         if not messages:
             break
         for message in messages:
-            plan_sandbox_clean_message_day = message.created_at
             app = db.session.query(App).filter_by(id=message.app_id).first()
             if not app:
                 logger.warning(
@@ -64,7 +64,7 @@ def clean_messages():
                 plan = features.billing.subscription.plan
             else:
                 plan = plan_cache.decode()
-            if plan == "sandbox":
+            if plan == CloudPlan.SANDBOX:
                 # clean related message
                 db.session.query(MessageFeedback).where(MessageFeedback.message_id == message.id).delete(
                     synchronize_session=False
